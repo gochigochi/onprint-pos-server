@@ -7,28 +7,28 @@ const app = express()
 const httpServer = createServer(app)
 
 app.use(cors())
+app.use(express.json());
 
 //FOR PROD
-const io = new Server(httpServer)
+// const io = new Server(httpServer)
+// app.use(express.static('dist'))
 
 //FOR DEV
-// const io = new Server(httpServer, {
-//     cors: {
-//         origin: "http://localhost:5173"
-//     }
-// })
-
-//FOR PRODUCTION
-app.use(express.static('dist'))
+const io = new Server(httpServer, {
+    cors: {
+        origin: "http://localhost:5173"
+    }
+})
 
 io.on("connection", socket => {
     console.log("user connected")
 })
 
-app.get("/api/new-order", (req, res) => {
-    // HERE CHECK IF PAYMENT AND IDS ARE VALIDS - SECURITY
-    // CHECK REQ DATA TO PASS TO TICKET!
-    io.emit("new-order", { success: true })
+app.post("/api/new-order", (req, res) => {
+    
+    const data = req.body
+
+    io.emit("new-order", { success: true, data: data })
     res.send("ok").status(200)
 })
 
