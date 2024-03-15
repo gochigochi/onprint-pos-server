@@ -7,33 +7,89 @@ const cors = require("cors")
 const app = express()
 const httpServer = createServer(app)
 
+// WOOCOMMERCE CERT
+const baseUrl = process.env.STORE_URL
+const ck = process.env.WOO_CONSUMER_KEY
+const cs = process.env.WOO_SECRET_KEY
+const auth = btoa(`${ck}:${cs}`)
+
 app.use(cors())
 app.use(express.json());
 
 //FOR PROD
-const io = new Server(httpServer)
-app.use(express.static('dist'))
+// const io = new Server(httpServer)
+// app.use(express.static('dist'))
 
 //FOR DEV
-// const io = new Server(httpServer, {
-//     cors: {
-//         origin: "http://localhost:5173"
-//     }
-// })
+const io = new Server(httpServer, {
+    cors: {
+        origin: "http://localhost:5173"
+    }
+})
 
 io.on("connection", socket => {
     console.log("user connected")
 })
 
+// PRODUCTS BY CATEGORY
+app.post("/api/products", async (req, res) => {
+    // https://resto-demo.ch/wp-json/wc/v3/products?category=36
+    const url = `${baseUrl}products?category=${req.body.id}&per_page=100`
+    let result
+
+    try {
+
+        const wooResponse = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Basic ${auth}`,
+            },
+        })
+
+        result = await wooResponse.json()
+
+    } catch (err) {
+
+        res.status(500).send({ ok: false, msg: err })
+
+    }
+
+    res.status(200).send({ products: result })
+})
+
+// CATEGORIES
+app.get("/api/categories", async (req, res) => {
+
+    const url = `${baseUrl}products/categories`
+    let result
+
+    try {
+
+        const wooResponse = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Basic ${auth}`,
+            },
+        })
+
+        result = await wooResponse.json()
+
+    } catch (err) {
+
+        res.status(500).send({ ok: false, msg: err })
+
+    }
+
+    res.status(200).send({ categories: result })
+})
+
+// CRETE NEW ORDER
 app.post("/api/new-order", async (req, res) => {
 
-    const baseUrl = process.env.STORE_URL
-    const ck = process.env.WOO_CONSUMER_KEY
-    const cs = process.env.WOO_SECRET_KEY
-
-    //CREATE WOO ORDER
+    // create woo order
     const url = `${baseUrl}orders`
-    const auth = btoa(`${ck}:${cs}`)
 
     const data = {
         payment_method: 'bacs',
@@ -82,7 +138,7 @@ app.post("/api/new-order", async (req, res) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Basic ${auth}`,
+                'Authorization': `Basic ${auth}`,
             },
             body: JSON.stringify(data),
         })
