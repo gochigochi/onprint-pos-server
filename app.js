@@ -91,6 +91,17 @@ app.post("/api/new-order", async (req, res) => {
     // create woo order
     const url = `${baseUrl}orders`
 
+    //req.body schema:
+    // {
+    //     products: [],
+    //     isStore: true/false
+    //     storeId: store1/store2... //define printer
+    // }
+
+    // TODO get products data from woo
+    console.log(req.body.products)
+
+    // TODO format order
     const data = {
         payment_method: 'bacs',
         payment_method_title: 'Direct Bank Transfer',
@@ -134,16 +145,16 @@ app.post("/api/new-order", async (req, res) => {
 
     try {
 
-        const wooResponse = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${auth}`,
-            },
-            body: JSON.stringify(data),
-        })
+        // const wooResponse = await fetch(url, {
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/json',
+        //         'Authorization': `Basic ${auth}`,
+        //     },
+        //     body: JSON.stringify(data),
+        // })
 
-        const result = await wooResponse.json()
+        // const result = await wooResponse.json()
 
     } catch (err) {
 
@@ -152,7 +163,7 @@ app.post("/api/new-order", async (req, res) => {
     }
 
     const orderData = req.body
-    io.emit("new-order", { success: true, data: orderData })
+    io.emit("new-order", { success: true, data: orderData, isStore: true })
 
     res.send({ ok: true }).status(200)
 })
