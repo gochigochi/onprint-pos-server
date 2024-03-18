@@ -145,16 +145,16 @@ app.post("/api/new-order", async (req, res) => {
 
     try {
 
-        // const wooResponse = await fetch(url, {
-        //     method: 'POST',
-        //     headers: {
-        //         'Content-Type': 'application/json',
-        //         'Authorization': `Basic ${auth}`,
-        //     },
-        //     body: JSON.stringify(data),
-        // })
+        const wooResponse = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${auth}`,
+            },
+            body: JSON.stringify(data),
+        })
 
-        // const result = await wooResponse.json()
+        const result = await wooResponse.json()
 
     } catch (err) {
 
@@ -163,6 +163,7 @@ app.post("/api/new-order", async (req, res) => {
     }
 
     const orderData = req.body
+    
     io.emit("new-order", { success: true, data: orderData, isStore: true })
 
     res.send({ ok: true }).status(200)
