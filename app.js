@@ -32,9 +32,9 @@ io.on("connection", socket => {
 })
 
 // PRODUCTS BY CATEGORY
-app.post("/api/products", async (req, res) => {
-    // https://resto-demo.ch/wp-json/wc/v3/products?category=36
-    const url = `${baseUrl}products?category=${req.body.id}&per_page=100`
+app.get("/api/products/:id", async (req, res) => {
+
+    const url = `${baseUrl}products?category=${req.params.id}&per_page=100`
     let result
 
     try {
@@ -74,7 +74,10 @@ app.get("/api/categories", async (req, res) => {
             },
         })
 
+        
         result = await wooResponse.json()
+        
+        console.log("RESULT", result)
 
     } catch (err) {
 
