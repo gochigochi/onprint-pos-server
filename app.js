@@ -74,7 +74,6 @@ app.get("/api/categories", async (req, res) => {
             },
         })
 
-        
         result = await wooResponse.json()
         
         console.log("RESULT", result)
@@ -87,6 +86,67 @@ app.get("/api/categories", async (req, res) => {
 
     res.status(200).send({ categories: result })
 })
+
+// REPORTS
+app.get("/api/reports/sales", async (req, res) => {
+
+    const url = `${baseUrl}reports/sales`
+    let result
+
+    try {
+
+        const wooResponse = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Basic ${auth}`,
+            },
+        })
+
+        result = await wooResponse.json()
+        
+        console.log("RESULT", result)
+
+    } catch (err) {
+
+        res.status(500).send({ ok: false, msg: err })
+
+    }
+
+    console.log(result)
+    res.status(200).send({ data: result })
+})
+
+// TOTAL ORDERS
+app.get("/api/total-orders-report", async (req, res) => {
+
+    const url = `${baseUrl}reports/orders/totals`
+    let result
+
+    try {
+
+        const wooResponse = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Basic ${auth}`,
+            },
+        })
+
+        result = await wooResponse.json()
+        
+        console.log("RESULT", result)
+
+    } catch (err) {
+
+        res.status(500).send({ ok: false, msg: err })
+
+    }
+
+    console.log(result)
+    res.status(200).send({ data: result })
+})
+
 
 // CRETE NEW ORDER
 app.post("/api/new-order", async (req, res) => {
