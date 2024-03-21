@@ -154,6 +154,8 @@ app.post("/api/new-order", async (req, res) => {
     // create woo order
     const url = `${baseUrl}orders`
 
+    let result
+
     //req.body schema:
     // {
     //     products: [],
@@ -161,50 +163,39 @@ app.post("/api/new-order", async (req, res) => {
     //     storeId: store1/store2... //define printer
     // }
 
-    // TODO get products data from woo
-    console.log(req.body.products)
+    const data = req.body
+
+    console.log(data)
 
     // TODO format order
-    const data = {
+    const order = {
         payment_method: 'bacs',
         payment_method_title: 'Direct Bank Transfer',
         set_paid: true,
         billing: {
-            first_name: 'John',
-            last_name: 'Doe',
-            address_1: '969 Market',
-            address_2: '',
-            city: 'San Francisco',
-            state: 'CA',
-            postcode: '94103',
-            country: 'US',
-            email: 'john.doe@example.com',
-            phone: '(555) 555-5555',
+            first_name: data.customer,
+            // last_name: 'Doe',
+            // address_1: '969 Market',
+            // address_2: '',
+            // city: 'San Francisco',
+            // state: 'CA',
+            // postcode: '94103',
+            // country: 'US',
+            // email: 'john.doe@example.com',
+            // phone: '(555) 555-5555',
         },
         shipping: {
-            first_name: 'Takeaway',
-            last_name: 'Doe',
-            address_1: '969 Market',
-            address_2: '',
-            city: 'San Francisco',
-            state: 'CA',
-            postcode: '94103',
-            country: 'US',
+            first_name: data.customer,
+            // last_name: 'Doe',
+            address_1: data.address,
+            // address_2: '',
+            city: data.city,
+            // state: 'CA',
+            postcode: data.postcode,
+            country: data.country,
         },
-        line_items: [
-            {
-                product_id: req.body.id,
-                quantity: 1,
-            },
-        ],
-        shipping_lines: [
-            {
-                method_id: 'flat_rate',
-                method_title: 'Flat Rate',
-                total: '10.00',
-            },
-        ],
-    };
+        line_items: data.products
+    }
 
     try {
 
@@ -214,22 +205,20 @@ app.post("/api/new-order", async (req, res) => {
                 'Content-Type': 'application/json',
                 'Authorization': `Basic ${auth}`,
             },
-            body: JSON.stringify(data),
+            body: JSON.stringify(order),
         })
 
-        const result = await wooResponse.json()
+        result = await wooResponse.json()
 
     } catch (err) {
 
         res.status(500).send({ ok: false, msg: err })
 
     }
-
-    const orderData = req.body
     
-    io.emit("new-order", { success: true, data: orderData, isStore: true })
+    io.emit("new-order", { success: true, data: result })
 
-    res.send({ ok: true }).status(200)
+    res.send({ ok: true, result: result }).status(200)
 })
 
 httpServer.listen(8080, () => {
