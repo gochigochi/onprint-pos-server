@@ -147,6 +147,48 @@ app.get("/api/total-orders-report", async (req, res) => {
     res.status(200).send({ data: result })
 })
 
+// GET ORDERS
+app.get("/api/orders", async (req, res) => {
+
+    const url = `${baseUrl}orders?page=${req.query.page}&per_page=20`
+    const nextPage = parseInt(req.query.page) + 1
+    const nextUrl = `${baseUrl}orders?page=${nextPage}`
+
+    let orders
+    let hasNextPage
+
+    try {
+
+        const wooResponse = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Basic ${auth}`,
+            },
+        })
+
+        orders = await wooResponse.json()
+
+        const nextResponse = await fetch(nextUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Basic ${auth}`,
+            },
+        })
+ 
+        const nextResult = await nextResponse.json()
+
+        hasNextPage = nextResult.length > 0
+
+    } catch (err) {
+
+        res.status(500).send({ ok: false, msg: err })
+    }
+
+    res.status(200).send({ orders: orders, hasNextPage })
+})
+
 
 // CRETE NEW ORDER
 app.post("/api/new-order", async (req, res) => {
