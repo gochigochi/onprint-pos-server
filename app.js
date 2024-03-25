@@ -75,8 +75,6 @@ app.get("/api/categories", async (req, res) => {
         })
 
         result = await wooResponse.json()
-        
-        console.log("RESULT", result)
 
     } catch (err) {
 
@@ -87,10 +85,12 @@ app.get("/api/categories", async (req, res) => {
     res.status(200).send({ categories: result })
 })
 
-// REPORTS
-app.get("/api/reports/sales", async (req, res) => {
+// SALES REPORT
+app.get("/api/sales-reports", async (req, res) => {
 
-    const url = `${baseUrl}reports/sales`
+    const queryString = Object.entries(req.query).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`).join('&')
+
+    const url = `${baseUrl}reports/sales?${queryString}`
     let result
 
     try {
@@ -104,8 +104,6 @@ app.get("/api/reports/sales", async (req, res) => {
         })
 
         result = await wooResponse.json()
-        
-        console.log("RESULT", result)
 
     } catch (err) {
 
@@ -113,8 +111,7 @@ app.get("/api/reports/sales", async (req, res) => {
 
     }
 
-    console.log(result)
-    res.status(200).send({ data: result })
+    res.status(200).send({ summary: result[0] })
 })
 
 // TOTAL ORDERS
@@ -134,8 +131,8 @@ app.get("/api/total-orders-report", async (req, res) => {
         })
 
         result = await wooResponse.json()
-        
-        console.log("RESULT", result)
+
+
 
     } catch (err) {
 
@@ -143,7 +140,6 @@ app.get("/api/total-orders-report", async (req, res) => {
 
     }
 
-    console.log(result)
     res.status(200).send({ data: result })
 })
 
@@ -176,7 +172,7 @@ app.get("/api/orders", async (req, res) => {
                 Authorization: `Basic ${auth}`,
             },
         })
- 
+
         const nextResult = await nextResponse.json()
 
         hasNextPage = nextResult.length > 0
@@ -206,8 +202,6 @@ app.post("/api/new-order", async (req, res) => {
     // }
 
     const data = req.body
-
-    console.log(data)
 
     // TODO format order
     const order = {
@@ -257,7 +251,7 @@ app.post("/api/new-order", async (req, res) => {
         res.status(500).send({ ok: false, msg: err })
 
     }
-    
+
     io.emit("new-order", { success: true, data: result })
 
     res.send({ ok: true, result: result }).status(200)
