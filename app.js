@@ -3,6 +3,8 @@ const express = require("express")
 const { Server } = require("socket.io")
 const { createServer } = require("http")
 const cors = require("cors")
+const crypto = require("crypto")
+const bodyParser = require("body-parser")
 
 const app = express()
 const httpServer = createServer(app)
@@ -14,133 +16,61 @@ const cs = process.env.WOO_SECRET_KEY
 const auth = btoa(`${ck}:${cs}`)
 
 app.use(cors())
-app.use(express.json());
+app.use(express.json())
 
-//FOR PROD
-// const io = new Server(httpServer)
-// app.use(express.static('dist'))
+app.post("/webhook/new-order", async (req, res) => {
 
-//FOR DEV
-const io = new Server(httpServer, {
-    cors: {
-        origin: "http://localhost:5173"
-    }
-})
+    // const secret = 'b{Vy/V{rb%fjc<jKaORyoMdt1tQ9$OzyRlVb|#lCTdZjrPKjgI'
+    const signature = req.headers['x-wc-webhook-signature']
 
-io.on("connection", socket => {
-    console.log("user connected")
-})
+    console.log("SIGNATURE", signature)
 
-// PRODUCTS BY CATEGORY
-app.get("/api/products/:id", async (req, res) => {
+    // const payload = JSON.stringify(req.body)
 
-    const url = `${baseUrl}products?category=${req.params.id}&per_page=100`
-    let result
+    console.log("PAYLOAD...", payload)
+    // THE ISSUE: PAYLOAD RECEIVED HERE IN BODY IS DIFFERENT TO THE BODY SHOWN IN THE WOOCOMMERCE WEBHOOKS LOGS!
 
-    try {
+        try {
 
-        const wooResponse = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Basic ${auth}`,
-            },
-        })
+            // const secret = 'b{Vy/V{rb%fjc<jKaORyoMdt1tQ9$OzyRlVb|#lCTdZjrPKjgI'
+            // const signature = req.headers['x-wc-webhook-signature']
 
-        result = await wooResponse.json()
-
-    } catch (err) {
-
-        res.status(500).send({ ok: false, msg: err })
-
-    }
-
-    res.status(200).send({ products: result })
-})
-
-// CATEGORIES
-app.get("/api/categories", async (req, res) => {
-
-    const url = `${baseUrl}products/categories`
-    let result
-
-    try {
-
-        const wooResponse = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Basic ${auth}`,
-            },
-        })
-
-        result = await wooResponse.json()
-
-    } catch (err) {
-
-        res.status(500).send({ ok: false, msg: err })
-
-    }
-
-    res.status(200).send({ categories: result })
-})
-
-// SALES REPORT
-app.get("/api/sales-reports", async (req, res) => {
-
-    const queryString = Object.entries(req.query).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`).join('&')
-
-    const url = `${baseUrl}reports/sales?${queryString}`
-    let result
-
-    try {
-
-        const wooResponse = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Basic ${auth}`,
-            },
-        })
-
-        result = await wooResponse.json()
-
-    } catch (err) {
-
-        res.status(500).send({ ok: false, msg: err })
-
-    }
-
-    res.status(200).send({ summary: result[0] })
-})
-
-// TOTAL ORDERS
-app.get("/api/total-orders-report", async (req, res) => {
-
-    const url = `${baseUrl}reports/orders/totals`
-    let result
-
-    try {
-
-        const wooResponse = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Basic ${auth}`,
-            },
-        })
-
-        result = await wooResponse.json()
+            // console.log(req.rawBody)
+    s
+            const payload = await rawBody(req)
+            // const payload2 = JSON.stringify(req.body)
+            // const payload3 = req.body.toString()
 
 
 
-    } catch (err) {
+            const hmac = crypto.createHmac('sha256', secret).update(payload).digest('base64')
+            // const hmac2 = crypto.createHmac('sha256', secret).update(payload2).digest('base64')
+            // const hmac3 = crypto.createHmac('sha256', secret).update(payload3).digest('base64')
 
-        res.status(500).send({ ok: false, msg: err })
+            // const rawReqBody = await rawBody(req)
+            // const hmac = crypto.createHmac('sha256', secret).update(rawReqBody).digest('base64')
 
-    }
+            // SEND ALL THE DATA AS POSSIBLE
+            const response = {
+                success: true,
+                payload: payload,
+                payload2,
+                // payload3,
+                secret: secret,
+                signature: signature,
+                hmac,
+                // hmac2,
+                // hmac3,
+            }
 
-    res.status(200).send({ data: result })
+            io.emit("new-order", response)
+            // res.send({ ok: true }).status(200)
+
+        } catch (err) {
+
+            console.log("Catched Error..", err)
+            res.send({ ok: false, msg: err }).status(500)
+        }
 })
 
 // GET ORDERS
@@ -185,77 +115,21 @@ app.get("/api/orders", async (req, res) => {
     res.status(200).send({ orders: orders, hasNextPage })
 })
 
+//FOR PROD
+// const io = new Server(httpServer)
+// app.use(express.static('dist'))
 
-// CRETE NEW ORDER
-app.post("/api/new-order", async (req, res) => {
-
-    // create woo order
-    const url = `${baseUrl}orders`
-
-    let result
-
-    //req.body schema:
-    // {
-    //     products: [],
-    //     isStore: true/false
-    //     storeId: store1/store2... //define printer
-    // }
-
-    const data = req.body
-
-    // TODO format order
-    const order = {
-        payment_method: 'bacs',
-        payment_method_title: 'Direct Bank Transfer',
-        set_paid: true,
-        billing: {
-            first_name: data.customer,
-            // last_name: 'Doe',
-            // address_1: '969 Market',
-            // address_2: '',
-            // city: 'San Francisco',
-            // state: 'CA',
-            // postcode: '94103',
-            // country: 'US',
-            // email: 'john.doe@example.com',
-            // phone: '(555) 555-5555',
-        },
-        shipping: {
-            first_name: data.customer,
-            // last_name: 'Doe',
-            address_1: data.address,
-            // address_2: '',
-            city: data.city,
-            // state: 'CA',
-            postcode: data.postcode,
-            country: data.country,
-        },
-        line_items: data.products
+//FOR DEV
+const io = new Server(httpServer, {
+    cors: {
+        origin: "http://localhost:5173"
     }
-
-    try {
-
-        const wooResponse = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${auth}`,
-            },
-            body: JSON.stringify(order),
-        })
-
-        result = await wooResponse.json()
-
-    } catch (err) {
-
-        res.status(500).send({ ok: false, msg: err })
-
-    }
-
-    io.emit("new-order", { success: true, data: result })
-
-    res.send({ ok: true, result: result }).status(200)
 })
+
+io.on("connection", socket => {
+    console.log("user connected")
+})
+
 
 httpServer.listen(8080, () => {
     console.log("server started at 8080")
