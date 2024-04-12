@@ -1,4 +1,6 @@
 require('dotenv').config()
+const { createLogger, transports, format } = require('winston');
+
 const express = require("express")
 const { Server } = require("socket.io")
 const { createServer } = require("http")
@@ -8,70 +10,89 @@ const bodyParser = require("body-parser")
 
 const app = express()
 const httpServer = createServer(app)
+const logger = createLogger({
+    level: 'info',
+    format: format.combine(
+        format.timestamp(),
+        format.json()
+    ),
+    transports: [
+        new transports.File({ filename: 'webhook-logs.log' })
+    ]
+});
+const rawBodySaver = (req, res, buf, encoding) => {
+    if (buf && buf.length) {
+        req.rawBody = buf.toString(encoding || 'utf8');
+    }
+};
 
+app.use(bodyParser.json({ verify: rawBodySaver }));
+app.use(bodyParser.urlencoded({ verify: rawBodySaver, extended: true }));
+app.use(bodyParser.raw({ verify: rawBodySaver, type: '*/*' }));
 // WOOCOMMERCE CERT
+
 const baseUrl = process.env.STORE_URL
 const ck = process.env.WOO_CONSUMER_KEY
 const cs = process.env.WOO_SECRET_KEY
 const auth = btoa(`${ck}:${cs}`)
 
 app.use(cors())
-app.use(express.json())
+app.use(
+    express.json({
+        verify: function (req, res, buf) {
+            req.rawBody = buf;
+        },
+    })
+);
 
+const fs = require('fs');
+
+// Función para escribir en el archivo de logs
+
+
+
+// Middleware para manejar el endpoint /webhook/new-order
 app.post("/webhook/new-order", async (req, res) => {
+    logger.info('webhook/new-order');
+    const incomingSignature = req.headers["x-wc-webhook-signature"]; // modify this accordingly
+    const payload = req.rawBody; // Buffer, already, no need to stringify.
 
-    // const secret = 'b{Vy/V{rb%fjc<jKaORyoMdt1tQ9$OzyRlVb|#lCTdZjrPKjgI'
-    const signature = req.headers['x-wc-webhook-signature']
+    logger.info(payload);
+    logger.info(incomingSignature);
+    try {
+        // Verificar la firma
 
-    console.log("SIGNATURE", signature)
+        const calculatedSignature = crypto
+            .createHmac("sha256", "b{Vy/V{rb%fjc<jKaORyoMdt1tQ9$OzyRlVb|#lCTdZjrPKjgI")
+            .update(payload)
+            .digest("base64");
+        logger.info('Abrite una cerveza');
+        logger.info(calculatedSignature);
+        // if (hash !== signature) {
+        //     console.log("HASH NOT MATCHED")
+        //     res.send({ ok: false, msg: "Hash not matched" }).status(401)
+        // } else {
+        //     console.log("HASH MATCHED")
+        //     res.send({ ok: true }).status(200)
+        // }
 
-    // const payload = JSON.stringify(req.body)
-
-    console.log("PAYLOAD...", payload)
-    // THE ISSUE: PAYLOAD RECEIVED HERE IN BODY IS DIFFERENT TO THE BODY SHOWN IN THE WOOCOMMERCE WEBHOOKS LOGS!
-
-        try {
-
-            // const secret = 'b{Vy/V{rb%fjc<jKaORyoMdt1tQ9$OzyRlVb|#lCTdZjrPKjgI'
-            // const signature = req.headers['x-wc-webhook-signature']
-
-            // console.log(req.rawBody)
-    s
-            const payload = await rawBody(req)
-            // const payload2 = JSON.stringify(req.body)
-            // const payload3 = req.body.toString()
-
-
-
-            const hmac = crypto.createHmac('sha256', secret).update(payload).digest('base64')
-            // const hmac2 = crypto.createHmac('sha256', secret).update(payload2).digest('base64')
-            // const hmac3 = crypto.createHmac('sha256', secret).update(payload3).digest('base64')
-
-            // const rawReqBody = await rawBody(req)
-            // const hmac = crypto.createHmac('sha256', secret).update(rawReqBody).digest('base64')
-
-            // SEND ALL THE DATA AS POSSIBLE
-            const response = {
-                success: true,
-                payload: payload,
-                payload2,
-                // payload3,
-                secret: secret,
-                signature: signature,
-                hmac,
-                // hmac2,
-                // hmac3,
-            }
-
-            io.emit("new-order", response)
-            // res.send({ ok: true }).status(200)
-
-        } catch (err) {
-
-            console.log("Catched Error..", err)
-            res.send({ ok: false, msg: err }).status(500)
+        // Escribir en el archivo de logs
+        // Emitir evento a los clientes conectados
+        const response = {
+            success: true,
+            payload: payload,
+            secret: secret,
+            signature: signature,
+            hmac,
         }
-})
+        io.emit("new-order", response);
+
+        res.send({ ok: true }).status(200);
+    } catch (err) {
+        console.log("Catched Error..", err)
+        res.send({ ok: false, msg: err }).status(500)
+    }
+});
 
 // GET ORDERS
 app.get("/api/orders", async (req, res) => {
@@ -127,10 +148,11 @@ const io = new Server(httpServer, {
 })
 
 io.on("connection", socket => {
-    console.log("user connected")
+    logger.info('socket OK');
 })
 
 
 httpServer.listen(8080, () => {
     console.log("server started at 8080")
+    logger.info('server started at 8080');
 })
